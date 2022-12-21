@@ -66,7 +66,10 @@
           <input id="background"/>
         </div>
         <div>
-          <button id="download">Download SVG</button>
+          <button id="download-svg">Download SVG</button>
+        </div>
+        <div>
+          <button id="download-png">Download PNG</button>
         </div>
       </div>
       <div>
@@ -108,17 +111,33 @@
       document.querySelector('#code').innerHTML = code
       document.querySelector('#output').firstChild.nodeValue = code
     }
-    function download() {
+    function filename(s, ext) {
+      return s.replace(/[^A-Za-z0-9]+/g, '-').substr(0, 30) + '.' + ext
+    }
+    function downloadSvg() {
       var data = getData()
       console.log(data)
-      downloadString(QRCode.generateSVG(data.data, data), 'image/svg+xml', data.data.replace(/[^A-Za-z0-9]+/g, '-').substr(0, 30) + '.svg')
+      downloadString(QRCode.generateSVG(data.data, data), 'image/svg+xml', filename(data.data, 'svg'))
+    }
+    function downloadPng() {
+      var data = getData()
+      data.modulesize = 10
+      var a = document.createElement('a')
+      a.download = filename(data.data, 'png')
+      a.href = QRCode.generatePNG(data.data, data)
+      a.dataset.downloadurl = ['image/png', a.download, a.href].join(':')
+      a.style.display = "none"
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
     }
     document.querySelector('#data').addEventListener('input', update)
     document.querySelector('#ecclevel').addEventListener('input', update)
     document.querySelector('#margin').addEventListener('input', update)
     document.querySelector('#color').addEventListener('input', update)
     document.querySelector('#background').addEventListener('input', update)
-    document.querySelector('#download').addEventListener('click', download)
+    document.querySelector('#download-svg').addEventListener('click', downloadSvg)
+    document.querySelector('#download-png').addEventListener('click', downloadPng)
     update()
   </script>
 </body>
