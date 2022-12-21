@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Code Generator</title>
+  <style>
+    html {
+      font-family: sans-serif;
+      overflow-y: scroll;
+    }
+    #code {
+      max-width: 200px;
+      margin: 50px auto;
+    }
+    #settings {
+      margin: 30px auto 0;
+      max-width: 500px;
+    }
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      resize: vertical;
+      margin: 0 0 5px;
+      min-height: 100px;
+    }
+    .toolbar {
+      padding: 0 0 5px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    input {
+      width: 50px;
+    }
+    code {
+      font-size: 0.8em;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <div id="code"></div>
+    <div id="settings">
+      <div class="toolbar">
+        <div>
+          ECC Level
+          <select id="ecclevel">
+            <option>L</option>
+            <option>M</option>
+            <option>Q</option>
+            <option>H</option>
+          </select>
+        </div>
+        <div>
+          Margin
+          <input id="margin" type="number" value="0" min="0" max="10"/>
+        </div>
+        <div>
+          Color
+          <input id="color"/>
+        </div>
+        <div>
+          Background
+          <input id="background"/>
+        </div>
+        <div>
+          <button id="download">Download SVG</button>
+        </div>
+      </div>
+      <div>
+        <textarea id="data"></textarea>
+      </div>
+      <div>
+        <code id="output"> </code>
+      </div>
+    </div>
+  </div>
+  <script src="qr.js"></script>
+  <script>
+    function downloadString(text, fileType, fileName) {
+      var blob = new Blob([text], { type: fileType })
+      var a = document.createElement('a')
+      a.download = fileName
+      a.href = URL.createObjectURL(blob)
+      a.dataset.downloadurl = [fileType, a.download, a.href].join(':')
+      a.style.display = "none"
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      setTimeout(function() { URL.revokeObjectURL(a.href) }, 1500)
+    }
+    function getData() {
+      return {
+        data: document.querySelector('#data').value,
+        margin: +document.querySelector('#margin').value,
+        modulesize: 1,
+        color: document.querySelector('#color').value,
+        background: document.querySelector('#background').value,
+        ecclevel: document.querySelector('#ecclevel').value
+      }
+    }
+    function update() {
+      var data = getData()
+      console.log(data)
+      var code = QRCode.generateSVG(data.data, data)
+      document.querySelector('#code').innerHTML = code
+      document.querySelector('#output').firstChild.nodeValue = code
+    }
+    function download() {
+      var data = getData()
+      console.log(data)
+      downloadString(QRCode.generateSVG(data.data, data), 'image/svg+xml', data.data.replace(/[^A-Za-z0-9]+/g, '-').substr(0, 30) + '.svg')
+    }
+    document.querySelector('#data').addEventListener('input', update)
+    document.querySelector('#ecclevel').addEventListener('input', update)
+    document.querySelector('#margin').addEventListener('input', update)
+    document.querySelector('#color').addEventListener('input', update)
+    document.querySelector('#background').addEventListener('input', update)
+    document.querySelector('#download').addEventListener('click', download)
+    update()
+  </script>
+</body>
+</html>
