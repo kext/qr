@@ -670,41 +670,61 @@ var createVertices = function(code, size) {
 	return vertices;
 };
 
-var bit = function(n, f) {
-	if (n & 1) f(0);
-	else if (n & 2) f(1);
-	else if (n & 4) f(2);
-	else if (n & 8) f(3);
+var insert = function(a, inserts) {
+	var i, j, k = 0, r = [];
+	for (i = 0; i < a.length; ++i) {
+		if (k < inserts.length && inserts[k].at === i) {
+			for (j = 0; j < inserts[k].data.length; ++j) {
+				r.push(inserts[k].data[j]);
+			}
+			k += 1;
+		}
+		r.push(a[i]);
+	}
+	return r;
+}
+
+var tracePath = function(vertices, i, j) {
+	var p = [], revisit = [], d;
+	while (vertices[i][j]) {
+		if ([0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1][vertices[i][j] & 15]) {
+			revisit.push([i, j, p.length]);
+		}
+		d = [3, 0, 1, 0, 2, 0, 1, 0][vertices[i][j] & 7];
+		vertices[i][j] &= ~(1 << d);
+		i += [0, 1, 0, -1][d];
+		j += [1, 0, -1, 0][d];
+		p.push(d);
+	}
+	return insert(p, revisit.map(function(r) {
+		return {
+			at: r[2],
+			data: tracePath(vertices, r[0], r[1])
+		};
+	}));
 };
 
-var tracePath = function(vertices, i0, j0, modsize) {
-	var i = i0, j = j0, p = '';
-	var dirs = [['h', 0, 1], ['v', 1, 0], ['h-', 0, -1], ['v-', -1, 0]];
-	var dir = 0, dist = 0;
-	while (true) {
-		bit(vertices[i][j], function(b) {
-			vertices[i][j] &= ~(1 << b);
-			i += dirs[b][1];
-			j += dirs[b][2];
-			if (dist && dir !== b) {
-				p += dirs[dir][0] + dist * modsize;
-				dist = 0;
-			}
-			dir = b;
-			dist += 1;
-		})
-		if (i === i0 && j === j0) break;
+var renderPath = function(directions, modsize) {
+	var p = '', dir = 0, dist = 0, i;
+	for (i = 0; i < directions.length; ++i) {
+		if (dist && dir !== directions[i]) {
+			p += ['h', 'v', 'h-', 'v-'][dir] + dist * modsize;
+			dist = 0;
+		}
+		dir = directions[i];
+		dist += 1;
 	}
 	p += 'z';
 	return p;
 };
 
 var tracePaths = function(vertices, margin, modsize) {
-	var i, j, i0 = -margin, j0 = -margin, p = '';
+	var i, j, i0 = -margin, j0 = -margin, p = '', t;
 	for (i = 0; i < vertices.length; ++i) {
 		for (j = 0; j < vertices[i].length; ++j) {
 			if (vertices[i][j] !== 0) {
-				p += 'm' + (j - j0) * modsize + (i0 > i ? '' : ' ') + (i - i0) * modsize + tracePath(vertices, i, j, modsize);
+				t = renderPath(tracePath(vertices, i, j), modsize);
+				p += 'm' + (j - j0) * modsize + (i0 > i ? '' : ' ') + (i - i0) * modsize + t;
 				i0 = i;
 				j0 = j;
 			}
@@ -805,7 +825,7 @@ var QRCode = {
 		return e;
 	},
 
-	'generateSVG': function(data, options) {
+	'generateSVGData': function(data, options) {
 		options = options || {};
 		var matrix = QRCode['generate'](data, options);
 		var n = matrix.length;
@@ -814,11 +834,20 @@ var QRCode = {
 		var size = modsize * (n + 2 * margin);
 		var vertices = createVertices(matrix, n);
 		var p = tracePaths(vertices, margin, modsize);
-		var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + size + ' ' + size + '">';
+		return {
+			size: size,
+			path: p
+		};
+	},
+
+	'generateSVG': function(data, options) {
+		options = options || {};
+		var d = QRCode['generateSVGData'](data, options);
+		var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + d.size + ' ' + d.size + '">';
 		if (options.background) {
-			svg += '<path fill="' + options.background + '" d="m0 0h' + size + 'v' + size + 'h-' + size + 'z"/>';
+			svg += '<path fill="' + options.background + '" d="m0 0h' + d.size + 'v' + d.size + 'h-' + d.size + 'z"/>';
 		}
-		svg += '<path' + (options.color ? ' fill="' + options.color + '"' : '') + ' d="' + p + '"/>';
+		svg += '<path' + (options.color ? ' fill="' + options.color + '"' : '') + ' d="' + d.path + '"/>';
 		svg += '</svg>';
 		return svg;
 	},
